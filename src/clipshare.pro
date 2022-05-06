@@ -24,10 +24,12 @@ QT += core \
     widgets
 
 # Input
-HEADERS += clipshare.h \
-           SingleApplication.h
-FORMS += clipshare.ui
-SOURCES += clipshare.cpp \
+HEADERS += ClipShareWindow.h \
+           SingleApplication.h \
+           Utils_JsonConvert.h
+FORMS += ClipShareWindow.ui
+SOURCES += ClipShareWindow.cpp \
            main.cpp \
-           SingleApplication.cpp
-RESOURCES += clipshare.qrc
+           SingleApplication.cpp \
+           Utils_JsonConvert.cpp
+RESOURCES += ClipShareWindow.qrc

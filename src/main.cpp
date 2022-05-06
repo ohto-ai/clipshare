@@ -1,4 +1,4 @@
-﻿#include "clipshare.h"
+﻿#include "ClipShareWindow.h"
 #include "SingleApplication.h"
 #include <cpp-httplib/httplib.h>
 #include <ghc/filesystem.hpp>
@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
 
     a.setWindowIcon(QIcon{ "res/icon/main.png" });
 
-    clipshare w;
+    ClipShareWindow w;
     // w.show();
 
 	spdlog::info("Interface crate.");

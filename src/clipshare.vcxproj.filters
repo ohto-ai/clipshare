@@ -23,16 +23,16 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <QtRcc Include="clipshare.qrc">
+    <QtRcc Include="ClipShareWindow.qrc">
       <Filter>Resource Files</Filter>
     </QtRcc>
-    <QtUic Include="clipshare.ui">
+    <QtUic Include="ClipShareWindow.ui">
       <Filter>Form Files</Filter>
     </QtUic>
-    <QtMoc Include="clipshare.h">
+    <QtMoc Include="ClipShareWindow.h">
       <Filter>Header Files</Filter>
     </QtMoc>
-    <ClCompile Include="clipshare.cpp">
+    <ClCompile Include="ClipShareWindow.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -43,10 +43,21 @@
     <ClCompile Include="SingleApplication.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Utils_JsonConvert.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="SingleApplication.h">
       <Filter>Header Files</Filter>
     </QtMoc>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="clipshare.pro" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Utils_JsonConvert.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

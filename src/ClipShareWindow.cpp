@@ -3,13 +3,57 @@
 #include <QMimeData>
 #include <QUrl>
 #include <QBuffer>
+#include <QTimer>
 #include <spdlog/spdlog.h>
-#include "clipshare.h"
+#include <QNetworkDatagram>
+#include "ClipShareWindow.h"
 
-clipshare::clipshare(QWidget *parent)
+ClipShareWindow::ClipShareWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     ui.setupUi(this);
+
+    broadcastReceiver.bind(QHostAddress::AnyIPv4, config.heartBeatPort, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint);
+    connect(&broadcastReceiver, &QUdpSocket::readyRead, [=]{
+        QByteArray datagram;
+        while (broadcastReceiver.hasPendingDatagrams()) {
+            //datagram.resize(broadcastReceiver.pendingDatagramSize());
+            //QHostAddress senderHost;
+            //quint16 senderPort;
+            auto pendingSize = broadcastReceiver.pendingDatagramSize();
+            auto networkDatagram = broadcastReceiver.receiveDatagram(broadcastReceiver.pendingDatagramSize());
+            auto datagramData = networkDatagram.data();
+            
+            //broadcastReceiver.readDatagram(datagram.data(), datagram.size(), &senderHost, &senderPort);
+            spdlog::info("Data receive [{}bytes/{}] {}:{}=>{}:{}: {}", datagramData.length(), pendingSize, networkDatagram.senderAddress().toString().toStdString(), networkDatagram.senderPort()
+                , networkDatagram.destinationAddress().toString().toStdString(), networkDatagram.destinationPort(), datagramData.toStdString());
+
+            auto senderHost = networkDatagram.senderAddress();
+
+            QTimer::singleShot(1000, [=]
+                {
+                    ClipSharePackage heartBeatPkg;
+                    heartBeatPkg.type = ClipSharePackage::ClipSharePackageHeartBeat;
+                    heartBeatPkg.receiverIPv4Address = senderHost.toString();
+                    auto data = QByteArray::fromStdString(nlohmann::json{ heartBeatPkg }.dump());
+                    spdlog::info("Data send to from {}:{}: {}", senderHost.toString().toStdString(), config.heartBeatPort, data.toStdString());
+
+                    broadcastReceiver.writeDatagram(datagram.data(), datagram.size(), QHostAddress::Broadcast, config.heartBeatPort);
+                });
+        }
+    });
+
+    broadcastSender.bind(QHostAddress(QHostAddress::AnyIPv4));
+    QTimer::singleShot(config.heartBeatInterval, [=]
+        {
+            ClipSharePackage heartBeatPkg;
+            heartBeatPkg.type = ClipSharePackage::ClipSharePackageHeartBeat;
+            heartBeatPkg.senderIPv4Address = "localhost";
+            heartBeatPkg.receiverIPv4Address = QHostAddress(QHostAddress::Broadcast).toString();
+            auto data = QByteArray::fromStdString(nlohmann::json{ heartBeatPkg }.dump());
+
+            broadcastSender.writeDatagram(data.data(), data.length(), QHostAddress::Broadcast, config.heartBeatPort);
+        });
 
     systemTrayIcon.setIcon(QApplication::windowIcon());
 
@@ -63,7 +107,7 @@ clipshare::clipshare(QWidget *parent)
                 systemTrayIcon.showMessage("Plain Text", text);
             }
             else {
-                systemTrayIcon.showMessage("Cannot display data", mimeData->text());
+                systemTrayIcon.showMessage("Cannot display data", QString{"Formats:(%1) \n Content:(%2)"}.arg(mimeData->formats().join("; "), mimeData->text()));
             }
         });
     systemTrayIcon.show();

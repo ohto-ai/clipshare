@@ -96,14 +96,21 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="SingleApplication.cpp" />
-    <QtRcc Include="clipshare.qrc" />
-    <QtUic Include="clipshare.ui" />
-    <QtMoc Include="clipshare.h" />
-    <ClCompile Include="clipshare.cpp" />
+    <ClCompile Include="Utils_JsonConvert.cpp" />
+    <QtRcc Include="ClipShareWindow.qrc" />
+    <QtUic Include="ClipShareWindow.ui" />
+    <QtMoc Include="ClipShareWindow.h" />
+    <ClCompile Include="ClipShareWindow.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="SingleApplication.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="clipshare.pro" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Utils_JsonConvert.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Condition="Exists('$(QtMsBuild)\qt.targets')">
