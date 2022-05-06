@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
     a.setWindowIcon(QIcon{ "res/icon/main.png" });
 
     clipshare w;
-    w.show();
+    // w.show();
 
 	spdlog::info("Interface crate.");
     return a.exec();

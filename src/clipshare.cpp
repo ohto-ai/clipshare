@@ -18,7 +18,7 @@ clipshare::clipshare(QWidget *parent)
 
     systemTrayIcon.setContextMenu(systemTrayMenu);
    
-    connect(QApplication::clipboard(), &QClipboard::changed, [=]
+    connect(QApplication::clipboard(), &QClipboard::dataChanged, [=]
         {
             const auto clipboard = QApplication::clipboard();
             auto mimeData = clipboard->mimeData();
