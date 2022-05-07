@@ -25,10 +25,10 @@ struct ClipSharePackage
 
     ClipSharePackageType type {ClipSharePackageType::ClipSharePackageNull };
     QByteArray data;
-    QString senderIPv4Address;
-    QString receiverIPv4Address;
+    QString sender;
+    QString receiver;
 
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(ClipSharePackage, type, data, senderIPv4Address, receiverIPv4Address);
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(ClipSharePackage, type, data, sender, receiver);
 };
 
 NLOHMANN_JSON_SERIALIZE_ENUM(ClipSharePackage::ClipSharePackageType, {
@@ -45,6 +45,7 @@ struct ClipShareConfig
 {
     int heartBeatPort{ 41688 };
     int heartBeatInterval{ 4000 };
+    QString multicastGroupHost{ "239.6.6.6" };
 
     NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(ClipShareConfig, heartBeatPort, heartBeatInterval);
 };
