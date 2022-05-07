@@ -10,6 +10,8 @@ int main(int argc, char *argv[])
 {
     SingleApplication a(argc, argv);
 
+    spdlog::set_level(spdlog::level::trace);
+
     spdlog::info("CLIPSHARE initializing~");
     if (a.instanceRunning())
     {

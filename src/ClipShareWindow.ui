@@ -1,28 +1,27 @@
 <UI version="4.0" >
- <class>clipshareClass</class>
- <widget class="QMainWindow" name="clipshareClass" >
+ <class>ClipShareWindow</class>
+ <widget class="QMainWindow" name="ClipShareWindow" >
   <property name="objectName" >
-   <string notr="true">clipshareClass</string>
+   <string notr="true">ClipShareWindow</string>
   </property>
   <property name="geometry" >
    <rect>
-    <x>0</x>
-    <y>0</y>
-    <width>600</width>
-    <height>400</height>
+	<x>0</x>
+	<y>0</y>
+	<width>400</width>
+	<height>300</height>
    </rect>
   </property>
   <property name="windowTitle" >
-   <string>clipshare</string>
-  </property>  <widget class="QMenuBar" name="menuBar" />
+   <string>ClipShareWindow</string>
+  </property>
+  <widget class="QMenuBar" name="menuBar" />
   <widget class="QToolBar" name="mainToolBar" />
   <widget class="QWidget" name="centralWidget" />
   <widget class="QStatusBar" name="statusBar" />
  </widget>
  <layoutDefault spacing="6" margin="11" />
  <pixmapfunction></pixmapfunction>
- <resources>
-   <include location="clipshare.qrc"/>
- </resources>
+ <resources/>
  <connections/>
 </UI>

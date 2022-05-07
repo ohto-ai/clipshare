@@ -60,12 +60,14 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
-      <AdditionalIncludeDirectories>3rd\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>3rd\include;.\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
-      <AdditionalIncludeDirectories>3rd\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>3rd\include;.\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|Win32'" Label="Configuration">
@@ -98,7 +100,6 @@
     <ClCompile Include="SingleApplication.cpp" />
     <ClCompile Include="Utils_JsonConvert.cpp" />
     <QtRcc Include="ClipShareWindow.qrc" />
-    <QtUic Include="ClipShareWindow.ui" />
     <QtMoc Include="ClipShareWindow.h" />
     <ClCompile Include="ClipShareWindow.cpp" />
     <ClCompile Include="main.cpp" />
@@ -111,6 +112,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Utils_JsonConvert.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <QtUic Include="ClipShareWindow.ui" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Condition="Exists('$(QtMsBuild)\qt.targets')">

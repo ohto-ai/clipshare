@@ -3,9 +3,10 @@
 #include <QtWidgets/QMainWindow>
 #include <QSystemTrayIcon>
 #include <QUdpSocket>
-#include <QHostInfo>
-#include <QNetworkInterface>
+#include <QTcpServer>
+#include <QTcpSocket>
 #include <QMetaEnum>
+#include <QTimer>
 
 #include "Utils_JsonConvert.h"
 #include "ui_ClipShareWindow.h"
@@ -16,7 +17,6 @@ struct ClipSharePackage
 {
     enum ClipSharePackageType{
         ClipSharePackageNull,
-    	ClipSharePackageHeartBeat,
     	ClipSharePackageImage,
         ClipSharePackagePlainText,
         ClipSharePackageRichText,
@@ -31,23 +31,43 @@ struct ClipSharePackage
     NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(ClipSharePackage, type, data, sender, receiver);
 };
 
+struct ClipShareHeartbeatPackage
+{
+    enum
+    {
+        Heartbeat = 0x73,
+        Respond = 0x66
+    };
+
+	std::uint8_t magic[4]{ 0x63, 0x73, 0x66, 0x80 };
+    std::uint32_t command { Heartbeat };
+
+    bool valid() const
+    {
+        return magic[0] == 0x63 && magic[1] == 0x73 && magic[2] == 0x66
+            && magic[3] == 0x80 && (command == Heartbeat || command == Respond);
+    }
+
+};
+constexpr ClipShareHeartbeatPackage ClipShareHeartbeatPackage_Heartbeat{ { 0x63, 0x73, 0x66, 0x80 }, ClipShareHeartbeatPackage::Heartbeat };
+constexpr ClipShareHeartbeatPackage ClipShareHeartbeatPackage_Respond{ { 0x63, 0x73, 0x66, 0x80 }, ClipShareHeartbeatPackage::Respond };
+
+
 NLOHMANN_JSON_SERIALIZE_ENUM(ClipSharePackage::ClipSharePackageType, {
     {ClipSharePackage::ClipSharePackageNull, nullptr},
-    {ClipSharePackage::ClipSharePackageHeartBeat, "ClipSharePackageHeartBeat"},
     {ClipSharePackage::ClipSharePackageImage, "ClipSharePackageImage"},
     {ClipSharePackage::ClipSharePackagePlainText, "ClipSharePackagePlainText"},
     {ClipSharePackage::ClipSharePackageRichText, "ClipSharePackageRichText"},
     {ClipSharePackage::ClipSharePackageCustom, "ClipSharePackageCustom"},
 });
 
-
 struct ClipShareConfig
 {
-    int heartBeatPort{ 41688 };
-    int heartBeatInterval{ 4000 };
-    QString multicastGroupHost{ "239.6.6.6" };
+    int heartbeatPort{ 41688 };
+    int heartbeatInterval{ 4000 };
+    QString heartbeatMulticastGroupHost{ "239.99.115.102" };
 
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(ClipShareConfig, heartBeatPort, heartBeatInterval);
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(ClipShareConfig, heartbeatPort, heartbeatInterval, heartbeatMulticastGroupHost);
 };
 
 
@@ -60,13 +80,19 @@ public:
 
 public slots:
 
+    void broadcastHeartbeat();
+
 protected:
     ClipShareConfig config{};
 
+    QTcpServer packageReciver{ this };
+    QTcpSocket packageSender{ this };
+
     QSystemTrayIcon systemTrayIcon{ this };
-    QUdpSocket broadcastSender{ this };
-    QUdpSocket broadcastReceiver{ this };
+    QUdpSocket heartbeatBroadcastSender{ this };
+    QUdpSocket heartbeatBroadcastReceiver{ this };
+    QTimer heartbeatTimer{ this };
 
 private:
-    Ui::clipshareClass ui{};
+    Ui::ClipShareWindow ui{};
 };

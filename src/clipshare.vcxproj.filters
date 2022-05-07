@@ -26,9 +26,6 @@
     <QtRcc Include="ClipShareWindow.qrc">
       <Filter>Resource Files</Filter>
     </QtRcc>
-    <QtUic Include="ClipShareWindow.ui">
-      <Filter>Form Files</Filter>
-    </QtUic>
     <QtMoc Include="ClipShareWindow.h">
       <Filter>Header Files</Filter>
     </QtMoc>
@@ -59,5 +56,10 @@
     <ClInclude Include="Utils_JsonConvert.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <QtUic Include="ClipShareWindow.ui">
+      <Filter>Form Files</Filter>
+    </QtUic>
   </ItemGroup>
 </Project>
