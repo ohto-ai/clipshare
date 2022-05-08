@@ -1,3 +1,5 @@
 <RCC>
-    <qresource prefix="/ClipShareWindow"/>
+    <qresource prefix="/ClipShareWindow">
+        <file>res/icon/main.png</file>
+    </qresource>
 </RCC>

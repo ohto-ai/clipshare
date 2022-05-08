@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    a.setWindowIcon(QIcon{ "res/icon/main.png" });
+    a.setWindowIcon(QIcon{ ":/ClipShareWindow/res/icon/main.png" });
 
     ClipShareWindow w;
     // w.show();
