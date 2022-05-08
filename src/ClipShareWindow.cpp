@@ -5,6 +5,7 @@
 #include <QHostInfo>
 #include <QNetworkInterface>
 #include <spdlog/spdlog.h>
+#include <spdlog/fmt/bin_to_hex.h>
 #include <QNetworkDatagram>
 #include "ClipShareWindow.h"
 
@@ -21,32 +22,42 @@ ClipShareWindow::ClipShareWindow(QWidget *parent)
             auto datagram = heartbeatBroadcastReceiver.receiveDatagram();
             auto datagramData = datagram.data();
 
-            spdlog::trace("Heartbeat receive [{}bytes] {}:{}=>{}:{}: 0x{}", datagramData.length()
+            spdlog::trace("[Heartbeat] Receive [{}bytes] {}:{}=>{}:{} {:a}", datagramData.length()
                 , datagram.senderAddress().toString().toStdString(), datagram.senderPort()
-                , datagram.destinationAddress().toString().toStdString(), datagram.destinationPort(), datagramData.toHex());
+                , datagram.destinationAddress().toString().toStdString(), datagram.destinationPort(), spdlog::to_hex(datagramData));
 
             if (datagramData.size() == sizeof(ClipShareHeartbeatPackage))
             {
                 const auto pkg = *(reinterpret_cast<const ClipShareHeartbeatPackage*>(datagramData.data()));
                 if (pkg.valid())
                 {
-                    if(pkg.command == ClipShareHeartbeatPackage::Heartbeat)
+                    if (!isLocalHost(datagram.senderAddress()))
                     {
-                        spdlog::info("Heartbeat receive from {}:{}", datagram.senderAddress().toString().toStdString(), datagram.senderPort());
-                    	heartbeatBroadcastSender.writeDatagram(reinterpret_cast<const char*>(&ClipShareHeartbeatPackage_Respond)
-                            , sizeof(ClipShareHeartbeatPackage), datagram.senderAddress(), config.heartbeatPort);
-
-	                    // todo send device info to it / ignore local
-                    }
-                    else if(pkg.command == ClipShareHeartbeatPackage::Respond)
-                    {
-                        spdlog::info("Respond receive from {}:{}", datagram.senderAddress().toString().toStdString(), datagram.senderPort());
+                        if (pkg.command == ClipShareHeartbeatPackage::Heartbeat)
+                        {
+                            spdlog::info("[Heartbeat] Heartbeat from {}:{}", datagram.senderAddress().toString().toStdString(), datagram.senderPort());
+                            heartbeatBroadcastSender.writeDatagram(reinterpret_cast<const char*>(&ClipShareHeartbeatPackage_Respond)
+                                , sizeof(ClipShareHeartbeatPackage), datagram.senderAddress(), config.heartbeatPort);
+                            // todo send device info to it / ignore local
+                        }
+                        else if (pkg.command == ClipShareHeartbeatPackage::Respond)
+                        {
+                            spdlog::info("[Heartbeat] Respond from {}:{}", datagram.senderAddress().toString().toStdString(), datagram.senderPort());
+                        }
                     }
                 }
+                else
+                {
+                    spdlog::warn("[Invalid] heartbeat package magic = 0x{:xns} command = 0x{:x}"
+                        , spdlog::to_hex(pkg.magic, pkg.magic + 4), pkg.command);
+                }
             }
-
+            else
+            {
+                spdlog::warn("[Heartbeat] Incorrect heartbeat package size: {}", datagramData.size());
+                spdlog::warn("[Heartbeat] Incorrect heartbeat package content(hex): {}", datagramData.toHex());
+            }
         }
-        spdlog::trace("============================= Broadcast quit =================================");
     });
 
     // setup heartbeat sender
@@ -144,4 +155,9 @@ ClipShareWindow::ClipShareWindow(QWidget *parent)
 void ClipShareWindow::broadcastHeartbeat()
 {
     heartbeatBroadcastSender.writeDatagram(reinterpret_cast<const char*>(&ClipShareHeartbeatPackage_Heartbeat), sizeof(ClipShareHeartbeatPackage), QHostAddress(config.heartbeatMulticastGroupHost), config.heartbeatPort);
+}
+
+bool ClipShareWindow::isLocalHost(QHostAddress addr)
+{
+    return QNetworkInterface::allAddresses().contains(addr);
 }

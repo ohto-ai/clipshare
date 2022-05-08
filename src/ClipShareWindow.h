@@ -93,6 +93,8 @@ protected:
     QUdpSocket heartbeatBroadcastReceiver{ this };
     QTimer heartbeatTimer{ this };
 
+    static bool isLocalHost(QHostAddress);
+
 private:
     Ui::ClipShareWindow ui{};
 };
