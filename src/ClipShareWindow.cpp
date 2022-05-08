@@ -27,7 +27,7 @@ ClipShareWindow::ClipShareWindow(QWidget *parent)
                 spdlog::info("[Server] Client {}:{} connected.", conn->peerAddress().toString(), conn->peerPort());
                 connect(conn, &QTcpSocket::disconnected, [=]
                     {
-                        spdlog::info("[Server] Client {}:{} disconnected.", conn->peerName(), conn->peerPort());
+                        spdlog::info("[Server] Client {}:{} disconnected.", conn->peerAddress().toString(), conn->peerPort());
                     });
                 connect(conn, &QTcpSocket::readyRead, [=]
                     {
@@ -41,7 +41,7 @@ ClipShareWindow::ClipShareWindow(QWidget *parent)
                         }
                         catch (nlohmann::json::parse_error e)
                         {
-                            spdlog::error("[Server] Invaild package from {}:{} {:a}", conn->peerName(), conn->peerPort(), spdlog::to_hex(data));
+                            spdlog::error("[Server] Invaild package from {}:{} {:a}", conn->peerAddress().toString(), conn->peerPort(), spdlog::to_hex(data));
                             spdlog::error("[Server] {}", e.what());
                         }
                     });

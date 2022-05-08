@@ -50,9 +50,6 @@
     </QtMoc>
   </ItemGroup>
   <ItemGroup>
-    <None Include="clipshare.pro" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="Utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
