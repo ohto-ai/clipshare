@@ -98,7 +98,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="SingleApplication.cpp" />
-    <ClCompile Include="Utils_JsonConvert.cpp" />
+    <ClCompile Include="Utils.cpp" />
     <QtRcc Include="ClipShareWindow.qrc" />
     <QtMoc Include="ClipShareWindow.h" />
     <ClCompile Include="ClipShareWindow.cpp" />
@@ -111,7 +111,7 @@
     <None Include="clipshare.pro" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Utils_JsonConvert.h" />
+    <ClInclude Include="Utils.h" />
   </ItemGroup>
   <ItemGroup>
     <QtUic Include="ClipShareWindow.ui" />

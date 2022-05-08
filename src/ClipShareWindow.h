@@ -8,11 +8,14 @@
 #include <QMetaEnum>
 #include <QTimer>
 
-#include "Utils_JsonConvert.h"
+#include "Utils.h"
 #include "ui_ClipShareWindow.h"
 
 class QClipboard;
 
+/// <summary>
+/// Package
+/// </summary>
 struct ClipSharePackage
 {
     enum ClipSharePackageType{
@@ -23,7 +26,7 @@ struct ClipSharePackage
         ClipSharePackageCustom
     };
 
-    ClipSharePackageType type {ClipSharePackageType::ClipSharePackageNull };
+    ClipSharePackageType type {ClipSharePackageType::ClipSharePackagePlainText };
     QByteArray data;
     QString sender;
     QString receiver;
@@ -31,6 +34,17 @@ struct ClipSharePackage
     NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(ClipSharePackage, type, data, sender, receiver);
 };
 
+NLOHMANN_JSON_SERIALIZE_ENUM(ClipSharePackage::ClipSharePackageType, {
+    {ClipSharePackage::ClipSharePackageNull, nullptr},
+    {ClipSharePackage::ClipSharePackageImage, "ClipSharePackageImage"},
+    {ClipSharePackage::ClipSharePackagePlainText, "ClipSharePackagePlainText"},
+    {ClipSharePackage::ClipSharePackageRichText, "ClipSharePackageRichText"},
+    {ClipSharePackage::ClipSharePackageCustom, "ClipSharePackageCustom"},
+    });
+
+/// <summary>
+/// hearbeat
+/// </summary>
 struct ClipShareHeartbeatPackage
 {
     enum
@@ -53,13 +67,13 @@ constexpr ClipShareHeartbeatPackage ClipShareHeartbeatPackage_Heartbeat{ { 0x63,
 constexpr ClipShareHeartbeatPackage ClipShareHeartbeatPackage_Response{ { 0x63, 0x73, 0x66, 0x80 }, ClipShareHeartbeatPackage::Response };
 
 
-NLOHMANN_JSON_SERIALIZE_ENUM(ClipSharePackage::ClipSharePackageType, {
-    {ClipSharePackage::ClipSharePackageNull, nullptr},
-    {ClipSharePackage::ClipSharePackageImage, "ClipSharePackageImage"},
-    {ClipSharePackage::ClipSharePackagePlainText, "ClipSharePackagePlainText"},
-    {ClipSharePackage::ClipSharePackageRichText, "ClipSharePackageRichText"},
-    {ClipSharePackage::ClipSharePackageCustom, "ClipSharePackageCustom"},
-});
+struct ClipShareNeighbor
+{
+    QString hostname;
+};
+
+
+
 
 struct ClipShareConfig
 {
@@ -67,7 +81,9 @@ struct ClipShareConfig
     int heartbeatInterval{ 20000 };
     QString heartbeatMulticastGroupHost{ "239.99.115.102" };
 
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(ClipShareConfig, heartbeatPort, heartbeatInterval, heartbeatMulticastGroupHost);
+    int packagePort{ 41690 };
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(ClipShareConfig, heartbeatPort, heartbeatInterval, heartbeatMulticastGroupHost, packagePort);
 };
 
 
@@ -81,12 +97,12 @@ public:
 public slots:
 
     void broadcastHeartbeat();
+    void handlePackageReceived(const QTcpSocket*, const ClipSharePackage&);
 
 protected:
     ClipShareConfig config{};
 
     QTcpServer packageReciver{ this };
-    QTcpSocket packageSender{ this };
 
     QSystemTrayIcon systemTrayIcon{ this };
     QUdpSocket heartbeatBroadcaster{ this };

@@ -31,8 +31,13 @@
 *.out
 *.app
 
+# Build
 Makefile
+Debug
+Release
+
+# Hide
 .*
 
-# vs code
+# VSCode
 .vscode/

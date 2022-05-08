@@ -40,7 +40,7 @@
     <ClCompile Include="SingleApplication.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Utils_JsonConvert.cpp">
+    <ClCompile Include="Utils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -53,7 +53,7 @@
     <None Include="clipshare.pro" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Utils_JsonConvert.h">
+    <ClInclude Include="Utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
