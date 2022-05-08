@@ -31,8 +31,8 @@
 *.out
 *.app
 
-src/Makefile
-src/.*
+Makefile
+.*
 
 # vs code
 .vscode/

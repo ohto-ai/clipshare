@@ -21,6 +21,7 @@ ClipShareWindow::ClipShareWindow(QWidget *parent)
     // setup heartbeat response
     heartbeatBroadcaster.bind(QHostAddress::AnyIPv4, config.heartbeatPort, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint);
     heartbeatBroadcaster.joinMulticastGroup(QHostAddress(config.heartbeatMulticastGroupHost));
+    heartbeatBroadcaster.setSocketOption(QAbstractSocket::MulticastLoopbackOption, 0);
     connect(&heartbeatBroadcaster, &QUdpSocket::readyRead, [=]{
         while (heartbeatBroadcaster.hasPendingDatagrams()) {
             auto datagram = heartbeatBroadcaster.receiveDatagram();
@@ -35,19 +36,16 @@ ClipShareWindow::ClipShareWindow(QWidget *parent)
                 const auto pkg = *(reinterpret_cast<const ClipShareHeartbeatPackage*>(datagramData.data()));
                 if (pkg.valid())
                 {
-                    if (!isLocalHost(datagram.senderAddress()))
+                    if (pkg.command == ClipShareHeartbeatPackage::Heartbeat)
                     {
-                        if (pkg.command == ClipShareHeartbeatPackage::Heartbeat)
-                        {
-                            spdlog::info("[Heartbeat] Heartbeat from {}:{}", datagram.senderAddress().toString().toStdString(), datagram.senderPort());
-                            heartbeatBroadcaster.writeDatagram(reinterpret_cast<const char*>(&ClipShareHeartbeatPackage_Response)
-                                , sizeof(ClipShareHeartbeatPackage), datagram.senderAddress(), datagram.senderPort());
-                            // todo send device info to it / ignore local
-                        }
-                        else if (pkg.command == ClipShareHeartbeatPackage::Response)
-                        {
-                            spdlog::info("[Heartbeat] Response from {}:{}", datagram.senderAddress().toString().toStdString(), datagram.senderPort());
-                        }
+                        spdlog::info("[Heartbeat] Heartbeat from {}:{}", datagram.senderAddress().toString().toStdString(), datagram.senderPort());
+                        heartbeatBroadcaster.writeDatagram(reinterpret_cast<const char*>(&ClipShareHeartbeatPackage_Response)
+                            , sizeof(ClipShareHeartbeatPackage), datagram.senderAddress(), datagram.senderPort());
+                        // todo send device info to it / ignore local
+                    }
+                    else if (pkg.command == ClipShareHeartbeatPackage::Response)
+                    {
+                        spdlog::info("[Heartbeat] Response from {}:{}", datagram.senderAddress().toString().toStdString(), datagram.senderPort());
                     }
                 }
                 else
