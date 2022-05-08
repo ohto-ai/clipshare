@@ -4,8 +4,8 @@
 
 TEMPLATE = app
 TARGET = clipshare
-INCLUDEPATH += . \
-    3rd/include/
+INCLUDEPATH += src \
+    src/3rd/include/
 
 # The following define makes your compiler warn you if you use any
 # feature of Qt which has been marked as deprecated (the exact warnings
@@ -24,12 +24,12 @@ QT += core \
     widgets
 
 # Input
-HEADERS += ClipShareWindow.h \
-           SingleApplication.h \
-           Utils_JsonConvert.h
-FORMS += ClipShareWindow.ui
-SOURCES += ClipShareWindow.cpp \
-           main.cpp \
-           SingleApplication.cpp \
-           Utils_JsonConvert.cpp
-RESOURCES += ClipShareWindow.qrc
+HEADERS += src/ClipShareWindow.h \
+           src/SingleApplication.h \
+           src/Utils_JsonConvert.h
+FORMS += src/ClipShareWindow.ui
+SOURCES += src/ClipShareWindow.cpp \
+           src/main.cpp \
+           src/SingleApplication.cpp \
+           src/Utils_JsonConvert.cpp
+RESOURCES += src/ClipShareWindow.qrc
