@@ -64,7 +64,7 @@ NLOHMANN_JSON_SERIALIZE_ENUM(ClipSharePackage::ClipSharePackageType, {
 struct ClipShareConfig
 {
     int heartbeatPort{ 41688 };
-    int heartbeatInterval{ 4000 };
+    int heartbeatInterval{ 20000 };
     QString heartbeatMulticastGroupHost{ "239.99.115.102" };
 
     NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(ClipShareConfig, heartbeatPort, heartbeatInterval, heartbeatMulticastGroupHost);

@@ -55,7 +55,7 @@ ClipShareWindow::ClipShareWindow(QWidget *parent)
             else
             {
                 spdlog::warn("[Heartbeat] Incorrect heartbeat package size: {}", datagramData.size());
-                spdlog::warn("[Heartbeat] Incorrect heartbeat package content(hex): {}", datagramData.toHex());
+                spdlog::warn("[Heartbeat] Incorrect heartbeat package content: {:a}", spdlog::to_hex(datagramData)););
             }
         }
     });
