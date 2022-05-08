@@ -12,10 +12,10 @@ int main(int argc, char *argv[])
 
     // spdlog::set_level(spdlog::level::trace);
 
-    spdlog::info("CLIPSHARE initializing~");
+    spdlog::info("[Application] CLIPSHARE initializing~");
     if (a.instanceRunning())
     {
-        spdlog::info("Another application has running, bye~");
+        spdlog::warn("[Application] Another application has running, bye~");
         return 0;
     }
 
@@ -24,6 +24,6 @@ int main(int argc, char *argv[])
     ClipShareWindow w;
     // w.show();
 
-	spdlog::info("Interface crate.");
+	spdlog::info("[Application] Interface crate.");
     return a.exec();
 }

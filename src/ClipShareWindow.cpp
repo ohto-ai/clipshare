@@ -14,12 +14,16 @@ ClipShareWindow::ClipShareWindow(QWidget *parent)
 {
     ui.setupUi(this);
 
-    // setup heartbeat respond
-    heartbeatBroadcastReceiver.bind(QHostAddress::AnyIPv4, config.heartbeatPort, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint);
-    heartbeatBroadcastReceiver.joinMulticastGroup(QHostAddress(config.heartbeatMulticastGroupHost));
-    connect(&heartbeatBroadcastReceiver, &QUdpSocket::readyRead, [=]{
-        while (heartbeatBroadcastReceiver.hasPendingDatagrams()) {
-            auto datagram = heartbeatBroadcastReceiver.receiveDatagram();
+    spdlog::info("[Config] Heartbeat Port = {}", config.heartbeatPort);
+    spdlog::info("[Config] Heartbeat Interval = {}", config.heartbeatInterval);
+    spdlog::info("[Config] Heartbeat Multicast Group Host = {}", config.heartbeatMulticastGroupHost.toStdString());
+
+    // setup heartbeat response
+    heartbeatBroadcaster.bind(QHostAddress::AnyIPv4, config.heartbeatPort, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint);
+    heartbeatBroadcaster.joinMulticastGroup(QHostAddress(config.heartbeatMulticastGroupHost));
+    connect(&heartbeatBroadcaster, &QUdpSocket::readyRead, [=]{
+        while (heartbeatBroadcaster.hasPendingDatagrams()) {
+            auto datagram = heartbeatBroadcaster.receiveDatagram();
             auto datagramData = datagram.data();
 
             spdlog::trace("[Heartbeat] Receive [{}bytes] {}:{}=>{}:{} {:a}", datagramData.length()
@@ -36,38 +40,43 @@ ClipShareWindow::ClipShareWindow(QWidget *parent)
                         if (pkg.command == ClipShareHeartbeatPackage::Heartbeat)
                         {
                             spdlog::info("[Heartbeat] Heartbeat from {}:{}", datagram.senderAddress().toString().toStdString(), datagram.senderPort());
-                            heartbeatBroadcastSender.writeDatagram(reinterpret_cast<const char*>(&ClipShareHeartbeatPackage_Respond)
-                                , sizeof(ClipShareHeartbeatPackage), datagram.senderAddress(), config.heartbeatPort);
+                            heartbeatBroadcaster.writeDatagram(reinterpret_cast<const char*>(&ClipShareHeartbeatPackage_Response)
+                                , sizeof(ClipShareHeartbeatPackage), datagram.senderAddress(), datagram.senderPort());
                             // todo send device info to it / ignore local
                         }
-                        else if (pkg.command == ClipShareHeartbeatPackage::Respond)
+                        else if (pkg.command == ClipShareHeartbeatPackage::Response)
                         {
-                            spdlog::info("[Heartbeat] Respond from {}:{}", datagram.senderAddress().toString().toStdString(), datagram.senderPort());
+                            spdlog::info("[Heartbeat] Response from {}:{}", datagram.senderAddress().toString().toStdString(), datagram.senderPort());
                         }
                     }
                 }
                 else
                 {
-                    spdlog::warn("[Invalid] heartbeat package magic = 0x{:xns} command = 0x{:x}"
+                    spdlog::warn("[Invalid] {}:{} heartbeat package [magic = 0x{:xns} command = 0x{:x}]"
+                        , datagram.senderAddress().toString().toStdString(), datagram.senderPort()
                         , spdlog::to_hex(pkg.magic, pkg.magic + 4), pkg.command);
                 }
             }
             else
             {
-                spdlog::warn("[Heartbeat] Incorrect heartbeat package size: {}", datagramData.size());
-                spdlog::warn("[Heartbeat] Incorrect heartbeat package content: {:a}", spdlog::to_hex(datagramData));
+                spdlog::warn("[Heartbeat] {}:{} Incorrect heartbeat package size: {}"
+                    , datagram.senderAddress().toString().toStdString(), datagram.senderPort()
+                    , datagramData.size());
+                spdlog::warn("[Heartbeat] {}:{} Incorrect heartbeat package content: {:a}"
+                    , datagram.senderAddress().toString().toStdString(), datagram.senderPort()
+                    , spdlog::to_hex(datagramData));
             }
         }
     });
 
     // setup heartbeat sender
-    heartbeatBroadcastSender.bind(QHostAddress(QHostAddress::AnyIPv4));
-    heartbeatBroadcastSender.joinMulticastGroup(QHostAddress(config.heartbeatMulticastGroupHost));
     heartbeatTimer.setInterval(config.heartbeatInterval);
     connect(&heartbeatTimer, &QTimer::timeout, this, &ClipShareWindow::broadcastHeartbeat);
 
     // start timer
     heartbeatTimer.start();
+    // send heartbeat
+    broadcastHeartbeat();
 
     systemTrayIcon.setIcon(QApplication::windowIcon());
 
@@ -99,7 +108,7 @@ ClipShareWindow::ClipShareWindow(QWidget *parent)
                 heartbeatPkg.sender = QHostInfo::localHostName();
                 heartbeatPkg.receiver = QHostAddress(config.heartbeatMulticastGroupHost).toString();
                 auto data = QByteArray::fromStdString(nlohmann::json{ heartbeatPkg }.dump());
-                heartbeatBroadcastSender.writeDatagram(data.data(), data.length(), QHostAddress(config.heartbeatMulticastGroupHost), config.heartbeatPort);
+                heartbeatBroadcaster.writeDatagram(data.data(), data.length(), QHostAddress(config.heartbeatMulticastGroupHost), config.heartbeatPort);
             }
             else if (mimeData->hasUrls()) {
                 QStringList urlStringList;
@@ -122,7 +131,7 @@ ClipShareWindow::ClipShareWindow(QWidget *parent)
                 heartbeatPkg.sender = QHostInfo::localHostName();
                 heartbeatPkg.receiver = QHostAddress(config.heartbeatMulticastGroupHost).toString();
                 auto data = QByteArray::fromStdString(nlohmann::json{ heartbeatPkg }.dump());
-                heartbeatBroadcastSender.writeDatagram(data.data(), data.length(), QHostAddress(config.heartbeatMulticastGroupHost), config.heartbeatPort);
+                heartbeatBroadcaster.writeDatagram(data.data(), data.length(), QHostAddress(config.heartbeatMulticastGroupHost), config.heartbeatPort);
             }
             else if (mimeData->hasText()) {
                 auto text = mimeData->text();
@@ -143,7 +152,7 @@ ClipShareWindow::ClipShareWindow(QWidget *parent)
                 heartbeatPkg.sender = QHostInfo::localHostName();
                 heartbeatPkg.receiver = QHostAddress(config.heartbeatMulticastGroupHost).toString();
                 auto data = QByteArray::fromStdString(nlohmann::json{ heartbeatPkg }.dump());
-                heartbeatBroadcastSender.writeDatagram(data.data(), data.length(), QHostAddress(config.heartbeatMulticastGroupHost), config.heartbeatPort);
+                heartbeatBroadcaster.writeDatagram(data.data(), data.length(), QHostAddress(config.heartbeatMulticastGroupHost), config.heartbeatPort);
             }
             else {
                 systemTrayIcon.showMessage("Cannot display data", QString{"Formats:(%1) \n Content:(%2)"}.arg(mimeData->formats().join("; "), mimeData->text()));
@@ -154,7 +163,7 @@ ClipShareWindow::ClipShareWindow(QWidget *parent)
 
 void ClipShareWindow::broadcastHeartbeat()
 {
-    heartbeatBroadcastSender.writeDatagram(reinterpret_cast<const char*>(&ClipShareHeartbeatPackage_Heartbeat), sizeof(ClipShareHeartbeatPackage), QHostAddress(config.heartbeatMulticastGroupHost), config.heartbeatPort);
+    heartbeatBroadcaster.writeDatagram(reinterpret_cast<const char*>(&ClipShareHeartbeatPackage_Heartbeat), sizeof(ClipShareHeartbeatPackage), QHostAddress(config.heartbeatMulticastGroupHost), config.heartbeatPort);
 }
 
 bool ClipShareWindow::isLocalHost(QHostAddress addr)

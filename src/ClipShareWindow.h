@@ -36,7 +36,7 @@ struct ClipShareHeartbeatPackage
     enum
     {
         Heartbeat = 0x73,
-        Respond = 0x66
+        Response = 0x66
     };
 
 	std::uint8_t magic[4]{ 0x63, 0x73, 0x66, 0x80 };
@@ -45,12 +45,12 @@ struct ClipShareHeartbeatPackage
     bool valid() const
     {
         return magic[0] == 0x63 && magic[1] == 0x73 && magic[2] == 0x66
-            && magic[3] == 0x80 && (command == Heartbeat || command == Respond);
+            && magic[3] == 0x80 && (command == Heartbeat || command == Response);
     }
 
 };
 constexpr ClipShareHeartbeatPackage ClipShareHeartbeatPackage_Heartbeat{ { 0x63, 0x73, 0x66, 0x80 }, ClipShareHeartbeatPackage::Heartbeat };
-constexpr ClipShareHeartbeatPackage ClipShareHeartbeatPackage_Respond{ { 0x63, 0x73, 0x66, 0x80 }, ClipShareHeartbeatPackage::Respond };
+constexpr ClipShareHeartbeatPackage ClipShareHeartbeatPackage_Response{ { 0x63, 0x73, 0x66, 0x80 }, ClipShareHeartbeatPackage::Response };
 
 
 NLOHMANN_JSON_SERIALIZE_ENUM(ClipSharePackage::ClipSharePackageType, {
@@ -89,8 +89,7 @@ protected:
     QTcpSocket packageSender{ this };
 
     QSystemTrayIcon systemTrayIcon{ this };
-    QUdpSocket heartbeatBroadcastSender{ this };
-    QUdpSocket heartbeatBroadcastReceiver{ this };
+    QUdpSocket heartbeatBroadcaster{ this };
     QTimer heartbeatTimer{ this };
 
     static bool isLocalHost(QHostAddress);
