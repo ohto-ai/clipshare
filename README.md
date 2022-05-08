@@ -32,7 +32,24 @@
 
 ## Installation
 
-***TO BE CONTINUED***
+### Dependences
+- ***Ubuntu***  
+```bash
+sudo apt install qtchooser
+sudo apt install libqt5widgets5
+```
+- ***Windows***  
+    - Qt Creator: use clipshare.pro
+    - Visual Studio: use clipshare.sln (need vs-qt plugin)
+
+### Build
+- ***Ubuntu***  
+```bash
+qmake && make
+```
+- ***Windows***  
+Build with IDE.
+
 
 ## Usage
 
