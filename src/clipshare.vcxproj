@@ -98,7 +98,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="SingleApplication.cpp" />
-    <ClCompile Include="Utils.cpp" />
+    <ClCompile Include="Adapter.cpp" />
     <QtRcc Include="ClipShareWindow.qrc" />
     <QtMoc Include="ClipShareWindow.h" />
     <ClCompile Include="ClipShareWindow.cpp" />
@@ -108,7 +108,7 @@
     <QtMoc Include="SingleApplication.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Utils.h" />
+    <ClInclude Include="Adapter.h" />
   </ItemGroup>
   <ItemGroup>
     <QtUic Include="ClipShareWindow.ui" />

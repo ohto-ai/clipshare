@@ -6,9 +6,10 @@
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QMetaEnum>
+#include <QMimeData>
 #include <QTimer>
 
-#include "Utils.h"
+#include "Adapter.h"
 #include "ui_ClipShareWindow.h"
 
 class QClipboard;
@@ -18,29 +19,19 @@ class QClipboard;
 /// </summary>
 struct ClipSharePackage
 {
-    enum ClipSharePackageType{
-        ClipSharePackageNull,
-    	ClipSharePackageImage,
-        ClipSharePackagePlainText,
-        ClipSharePackageRichText,
-        ClipSharePackageCustom
-    };
+    static constexpr auto DefaultMimeImageType{ "png" };
+    QStringList mimeFormats;
+    QByteArrayList mimeData;
+    QString mimeImageType;
+    QByteArray mimeImageData;
 
-    ClipSharePackageType type {ClipSharePackageType::ClipSharePackagePlainText };
-    QByteArray data;
     QString sender;
     QString receiver;
 
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(ClipSharePackage, type, data, sender, receiver);
-};
+    void encodeMimeData(const QMimeData*);
 
-NLOHMANN_JSON_SERIALIZE_ENUM(ClipSharePackage::ClipSharePackageType, {
-    {ClipSharePackage::ClipSharePackageNull, nullptr},
-    {ClipSharePackage::ClipSharePackageImage, "ClipSharePackageImage"},
-    {ClipSharePackage::ClipSharePackagePlainText, "ClipSharePackagePlainText"},
-    {ClipSharePackage::ClipSharePackageRichText, "ClipSharePackageRichText"},
-    {ClipSharePackage::ClipSharePackageCustom, "ClipSharePackageCustom"},
-    });
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(ClipSharePackage, mimeFormats, mimeData, mimeImageType, mimeImageData, sender, receiver);
+};
 
 /// <summary>
 /// hearbeat
@@ -103,6 +94,7 @@ protected:
     ClipShareConfig config{};
 
     QTcpServer packageReciver{ this };
+    QMultiMap<QString, QTcpSocket*> clientSockets;
 
     QSystemTrayIcon systemTrayIcon{ this };
     QUdpSocket heartbeatBroadcaster{ this };

@@ -3,6 +3,8 @@
 #include <QUrl>
 #include <QBuffer>
 #include <QHostInfo>
+#include <QFile>
+#include <QFileInfo>
 #include <QNetworkInterface>
 #include <spdlog/spdlog.h>
 #include <spdlog/fmt/bin_to_hex.h>
@@ -25,8 +27,13 @@ ClipShareWindow::ClipShareWindow(QWidget *parent)
             {
                 auto conn = packageReciver.nextPendingConnection();
                 spdlog::info("[Server] Client {}:{} connected.", conn->peerAddress().toString(), conn->peerPort());
+
+                // todo
+                clientSockets.insertMulti(conn->peerAddress().toString(), conn);
+
                 connect(conn, &QTcpSocket::disconnected, [=]
                     {
+                        clientSockets.remove(conn->peerAddress().toString(), conn);
                         spdlog::info("[Server] Client {}:{} disconnected.", conn->peerAddress().toString(), conn->peerPort());
                     });
                 connect(conn, &QTcpSocket::readyRead, [=]
@@ -122,25 +129,19 @@ ClipShareWindow::ClipShareWindow(QWidget *parent)
             const auto clipboard = QApplication::clipboard();
             auto mimeData = clipboard->mimeData();
 
+            auto formats = mimeData->formats();
+            spdlog::trace("[Clipboard][MimeData] contains {} formats", formats.count());
+            for (auto& key : formats)
+            {
+                auto val = mimeData->data(key);
+                spdlog::trace("[Clipboard][MimeData] {} = [{}bytes]{}", key, val.size(), val);
+            }
+
+            // preview
             if (mimeData->hasImage()) {
                 auto imageData = mimeData->imageData().value<QImage>();
                 spdlog::info("Image[{}x{}]", imageData.width(), imageData.height());
                 systemTrayIcon.showMessage("Image", "", QIcon(QPixmap::fromImage(imageData)));
-
-                QByteArray imageByteArray;
-                QBuffer buf(&imageByteArray);
-                imageData.save(&buf, "png");
-                imageByteArray = "data:image/png;base64,"+imageByteArray.toBase64();
-                spdlog::info("Image base64[{}bytes]", imageByteArray.size());
-
-
-                ClipSharePackage heartbeatPkg;
-                heartbeatPkg.data = imageByteArray;
-                heartbeatPkg.type = ClipSharePackage::ClipSharePackageImage;
-                heartbeatPkg.sender = QHostInfo::localHostName();
-                heartbeatPkg.receiver = QHostAddress(config.heartbeatMulticastGroupHost).toString();
-                auto data = QByteArray::fromStdString(nlohmann::json{ heartbeatPkg }.dump());
-                heartbeatBroadcaster.writeDatagram(data.data(), data.length(), QHostAddress(config.heartbeatMulticastGroupHost), config.heartbeatPort);
             }
             else if (mimeData->hasUrls()) {
                 QStringList urlStringList;
@@ -156,39 +157,25 @@ ClipShareWindow::ClipShareWindow(QWidget *parent)
                 auto content = mimeData->html();
                 spdlog::info("Rich Text[{} <{}bytes>]: {}", mimeData->text().count(), content.size(), mimeData->text());
                 systemTrayIcon.showMessage("Rich Text:", mimeData->text());
-
-                ClipSharePackage heartbeatPkg;
-                heartbeatPkg.data = content.toLocal8Bit().toBase64();
-                heartbeatPkg.type = ClipSharePackage::ClipSharePackageRichText;
-                heartbeatPkg.sender = QHostInfo::localHostName();
-                heartbeatPkg.receiver = QHostAddress(config.heartbeatMulticastGroupHost).toString();
-                auto data = QByteArray::fromStdString(nlohmann::json{ heartbeatPkg }.dump());
-                heartbeatBroadcaster.writeDatagram(data.data(), data.length(), QHostAddress(config.heartbeatMulticastGroupHost), config.heartbeatPort);
             }
             else if (mimeData->hasText()) {
                 auto text = mimeData->text();
-                if (text.startsWith("data:image/png;base64,"))
-                {
-                    auto data = text.split(",").back();
-                    QImage image;
-                    image.loadFromData(QByteArray::fromBase64(data.toLocal8Bit()));
-                    image.save("test.png");
-                    spdlog::info("Image[{}x{}] saved", image.width(), image.height());
-                }
                 spdlog::info("Plain Text[{}]: {}", mimeData->text().count(), mimeData->text());
                 systemTrayIcon.showMessage("Plain Text", text);
-
-                ClipSharePackage heartbeatPkg;
-                heartbeatPkg.data = text.toLocal8Bit().toBase64();
-                heartbeatPkg.type = ClipSharePackage::ClipSharePackagePlainText;
-                heartbeatPkg.sender = QHostInfo::localHostName();
-                heartbeatPkg.receiver = QHostAddress(config.heartbeatMulticastGroupHost).toString();
-                auto data = QByteArray::fromStdString(nlohmann::json{ heartbeatPkg }.dump());
-                heartbeatBroadcaster.writeDatagram(data.data(), data.length(), QHostAddress(config.heartbeatMulticastGroupHost), config.heartbeatPort);
             }
             else {
                 systemTrayIcon.showMessage("Cannot display data", QString{"Formats:(%1) \n Content:(%2)"}.arg(mimeData->formats().join("; "), mimeData->text()));
             }
+
+            ClipSharePackage package;
+
+            package.encodeMimeData(mimeData);
+
+            package.sender = QHostInfo::localHostName();
+            package.receiver = QHostAddress(config.heartbeatMulticastGroupHost).toString();
+            auto data = QByteArray::fromStdString(nlohmann::json{ package }.dump());
+            for (auto conn : clientSockets)
+                conn->write(data.data(), data.length());
         });
     systemTrayIcon.show();
 }
@@ -200,31 +187,62 @@ void ClipShareWindow::broadcastHeartbeat()
 
 void ClipShareWindow::handlePackageReceived(const QTcpSocket*conn, const ClipSharePackage& package)
 {
-    ClipSharePackage p = nlohmann::json::parse(R"({"data":"","receiver":"","sender":"","type":"ClipSharePackagePlainText"})");
-    spdlog::info("{} type {} should be {}", nlohmann::json(package).dump(), package.type, p.type);
-    switch (package.type)
-    {
-    case ClipSharePackage::ClipSharePackageNull:
-        spdlog::info("[Server] Receive Null: {}, from {}:{} {}", package.data, conn->peerAddress().toString(), conn->peerPort(), package.sender);
-        break;
-    case ClipSharePackage::ClipSharePackageImage:
-        spdlog::info("[Server] Receive Image: {}, from {}:{} {}", package.data, conn->peerAddress().toString(), conn->peerPort(), package.sender);
-        break;
-    case ClipSharePackage::ClipSharePackagePlainText:
-        spdlog::info("[Server] Receive PlainText: {}, from {}:{} {}", package.data, conn->peerAddress().toString(), conn->peerPort(), package.sender);
-        break;
-    case ClipSharePackage::ClipSharePackageRichText:
-        spdlog::info("[Server] Receive RichText: {}, from {}:{} {}", package.data, conn->peerAddress().toString(), conn->peerPort(), package.sender);
-        break;
-    case ClipSharePackage::ClipSharePackageCustom:
-        spdlog::info("[Server] Receive Custom: {}, from {}:{} {}", package.data, conn->peerAddress().toString(), conn->peerPort(), package.sender);
-        break;
-    default:
-        break;
-    }
+    spdlog::info("[Server] Receive: {}, from {}:{} {}", package.mimeFormats.join("; ")
+        , conn->peerAddress().toString(), conn->peerPort(), package.sender);
 }
 
 bool ClipShareWindow::isLocalHost(QHostAddress addr)
 {
     return QNetworkInterface::allAddresses().contains(addr);
+}
+
+void ClipSharePackage::encodeMimeData(const QMimeData*mimeData)
+{
+    auto formats = mimeData->formats();
+    for (auto format : formats)
+    {
+        auto data = mimeData->data(format);
+        spdlog::trace("[Mime] format [{}bytes]: {}", data.size(), format);
+        this->mimeFormats.push_back(format);
+        this->mimeData.push_back(data.toBase64());
+    }
+
+    // attach image
+    if (mimeData->hasImage()) {
+
+        // attach file
+        if (mimeData->hasUrls())
+        {
+            spdlog::trace("[Mime] Image from file {}", mimeData->urls().front().toLocalFile());
+            QFile file(mimeData->urls().front().toLocalFile());
+            if (file.open(QFile::ReadOnly)) {
+                mimeImageType = QFileInfo{ file }.suffix();
+                mimeImageData = file.readAll().toBase64();
+                file.close();
+            }
+            else
+            {
+                spdlog::warn("[Mime] Cannot load file from image url: {}", mimeData->urls().front().toString());
+            }
+        }
+
+        // from capture image / cannot load file; use image in clipboard
+        if (mimeImageData.isEmpty())
+        {
+            auto image = qvariant_cast<QImage>(mimeData->imageData());
+            spdlog::trace("[Mime] Image from clipboard {}x{}", image.width(), image.height());
+            QByteArray imageData;
+            QBuffer buffer(&imageData);
+            buffer.open(QIODevice::WriteOnly);
+            image.save(&buffer, DefaultMimeImageType);
+            mimeImageData = imageData.toBase64();
+        }
+
+        // use default type
+        if (mimeImageType.isEmpty())
+        {
+            spdlog::trace("[Mime] Set mimeImageType with {}", DefaultMimeImageType);
+            mimeImageType = DefaultMimeImageType;
+        }
+    }
 }

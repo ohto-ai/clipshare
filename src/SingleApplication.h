@@ -15,8 +15,8 @@ public:
 signals:
 	void newInstanceStartup(QStringList commandLine);	// 新实例启动
 private:
-	
-	void initLocalConnection();		// 初始化本地连接	
+
+	void initLocalConnection();		// 初始化本地连接
 	void createLocalServer();		// 创建服务端
 	bool isInstanceRunning;			// 是否已经有实例在运行
 	QLocalServer* localServer;		// 本地socket Server
