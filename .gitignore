@@ -35,6 +35,9 @@
 Makefile
 Debug
 Release
+moc_*
+qrc_*
+ui_*
 
 # Hide
 .*
