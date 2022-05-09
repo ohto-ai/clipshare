@@ -24,12 +24,7 @@ QT += core \
     widgets
 
 # Input
-HEADERS += src/ClipShareWindow.h \
-           src/SingleApplication.h \
-           src/Utils.h
+HEADERS += src/*.h
 FORMS += src/ClipShareWindow.ui
-SOURCES += src/ClipShareWindow.cpp \
-           src/main.cpp \
-           src/SingleApplication.cpp \
-           src/Utils.cpp
-RESOURCES += src/ClipShareWindow.qrc
+SOURCES += src/*.cpp
+RESOURCES += src/*.qrc
