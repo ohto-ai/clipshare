@@ -70,9 +70,10 @@ struct ClipShareConfig
 {
     int heartbeatPort{ 41688 };
     int heartbeatInterval{ 20000 };
+    int heartbeatSuvivalTimeout{ 60000 };
     QString heartbeatMulticastGroupHost{ "239.99.115.102" };
 
-    int packagePort{ 41690 };
+    int packagePort{ 41688 };
 
     NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(ClipShareConfig, heartbeatPort, heartbeatInterval, heartbeatMulticastGroupHost, packagePort);
 };
