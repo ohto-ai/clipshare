@@ -1,14 +1,17 @@
 ﻿#include <QClipboard>
 #include <QMimeData>
-#include <QUrl>
-#include <QBuffer>
-#include <QHostInfo>
-#include <QFile>
-#include <QFileInfo>
 #include <QNetworkInterface>
+#include <QNetworkDatagram>
+#include <QHostInfo>
+#include <QTemporaryFile>
+#include <QFileInfo>
+#include <QFile>
+#include <QDir>
+#include <QBuffer>
+#include <QUrl>
 #include <spdlog/spdlog.h>
 #include <spdlog/fmt/bin_to_hex.h>
-#include <QNetworkDatagram>
+
 #include "ClipShareWindow.h"
 
 ClipShareWindow::ClipShareWindow(QWidget *parent)
@@ -17,9 +20,11 @@ ClipShareWindow::ClipShareWindow(QWidget *parent)
     ui.setupUi(this);
 
     spdlog::info("[Config] Heartbeat Port = {}", config.heartbeatPort);
-    spdlog::info("[Config] Heartbeat Interval = {}", config.heartbeatInterval);
+    spdlog::info("[Config] Heartbeat Interval = {}", config.heartbeatBroadcastIntervalMSecs);
     spdlog::info("[Config] Heartbeat Multicast Group Host = {}", config.heartbeatMulticastGroupHost);
     spdlog::info("[Config] Package Port = {}", config.packagePort);
+
+    NeighborDeviceInfo::HeartbeatSuvivalTimeout = config.heartbeatSuvivalTimeoutMSecs;
 
     connect(&packageReciver, &QTcpServer::newConnection, [=]
         {
@@ -50,28 +55,7 @@ ClipShareWindow::ClipShareWindow(QWidget *parent)
 
             if (datagramData.size() == sizeof(ClipShareHeartbeatPackage))
             {
-                const auto pkg = *(reinterpret_cast<const ClipShareHeartbeatPackage*>(datagramData.data()));
-                if (pkg.valid())
-                {
-                    if (pkg.command == ClipShareHeartbeatPackage::Heartbeat)
-                    {
-                        spdlog::trace("[Heartbeat] Heartbeat from ({}:{})", datagram.senderAddress().toString(), datagram.senderPort());
-                        broadcastHeartbeat(ClipShareHeartbeatPackage::Response);
-                        // todo send device info to it / ignore local
-                    }
-                    else if (pkg.command == ClipShareHeartbeatPackage::Response)
-                    {
-                        spdlog::trace("[Heartbeat] Response from {}:{}", datagram.senderAddress().toString(), datagram.senderPort());
-                        neighbors.insert(QString{"%1_%2"}.arg(datagram.senderAddress().toString()).arg(pkg.port)
-                            , ClipShareNeighbor{datagram.senderAddress().toString(), datagram.senderAddress(), static_cast<int>(pkg.port)});
-                    }
-                }
-                else
-                {
-                    spdlog::warn("[Invalid] {}:{} heartbeat package [magic = 0x{:xns} command = 0x{:x}]"
-                        , datagram.senderAddress().toString(), datagram.senderPort()
-                        , spdlog::to_hex(pkg.magic, pkg.magic + sizeof(pkg.magic) / sizeof(pkg.magic[0])), pkg.command);
-                }
+                handleHeartbeatReceived(datagram, *(reinterpret_cast<const ClipShareHeartbeatPackage*>(datagramData.data())));
             }
             else
             {
@@ -86,7 +70,7 @@ ClipShareWindow::ClipShareWindow(QWidget *parent)
     });
 
     // setup heartbeat sender
-    heartbeatTimer.setInterval(config.heartbeatInterval);
+    heartbeatTimer.setInterval(config.heartbeatBroadcastIntervalMSecs);
     connect(&heartbeatTimer, &QTimer::timeout, this, [=]{
         broadcastHeartbeat();
     });
@@ -146,7 +130,7 @@ ClipShareWindow::ClipShareWindow(QWidget *parent)
                 systemTrayIcon.showMessage("Cannot display data", QString{"Formats:(%1) \n Content:(%2)"}.arg(mimeData->formats().join("; "), mimeData->text()));
             }
 
-            ClipSharePackage package;
+            ClipShareDataPackage package;
 
             package.encodeMimeData(mimeData);
 
@@ -174,6 +158,7 @@ QString ClipShareWindow::makeNeighborId(const QTcpSocket* sock)
 void ClipShareWindow::addClientNeighborSocket(QTcpSocket* sock)
 {
     auto neighbor = makeNeighborId(sock);
+    neighbors.insert(neighbor, ClipShareNeighbor{ sock->peerName(), sock->peerAddress(), sock->peerPort() });
     if (neighborClientSockets.contains(neighbor))
     {
         spdlog::warn("[Neighbor] {} has existed, try to close.", neighbor);
@@ -194,7 +179,7 @@ void ClipShareWindow::addClientNeighborSocket(QTcpSocket* sock)
                 , sock->peerAddress().toString(), sock->peerPort(), data);
 
             try {
-                handlePackageReceived(sock, ClipSharePackage(nlohmann::json::parse(data)));
+                handlePackageReceived(sock, ClipShareDataPackage(nlohmann::json::parse(data)));
             }
             catch (nlohmann::json::parse_error e)
             {
@@ -217,8 +202,15 @@ void ClipShareWindow::addServerNeighborSocket(QTcpSocket* sock)
     // register disconnected & readyRead
     connect(sock, &QTcpSocket::disconnected, [=]
         {
-            neighborServerSockets.remove(neighbor);
-            spdlog::info("[Server] Client {}:{} disconnected.", sock->peerAddress().toString(), sock->peerPort());
+            if (neighborServerSockets.value(neighbor) == sock)
+            {
+                neighborServerSockets.remove(neighbor);
+                spdlog::info("[Server] Client {}:{} disconnected.", sock->peerAddress().toString(), sock->peerPort());
+            }
+            else
+            {
+                spdlog::warn("[Server] Client socket {}:{} no found.", sock->peerAddress().toString(), sock->peerPort());
+            }
         });
     connect(sock, &QTcpSocket::readyRead, [=]
         {
@@ -227,7 +219,7 @@ void ClipShareWindow::addServerNeighborSocket(QTcpSocket* sock)
                 , sock->peerAddress().toString(), sock->peerPort(), data);
 
             try {
-                handlePackageReceived(sock, ClipSharePackage(nlohmann::json::parse(data)));
+                handlePackageReceived(sock, ClipShareDataPackage(nlohmann::json::parse(data)));
             }
             catch (nlohmann::json::parse_error e)
             {
@@ -246,21 +238,76 @@ void ClipShareWindow::broadcastHeartbeat(std::uint8_t command)
         , config.heartbeatPort);
 }
 
-void ClipShareWindow::handlePackageReceived(const QTcpSocket*conn, const ClipSharePackage& package)
+void ClipShareWindow::handlePackageReceived(QTcpSocket* conn, const ClipShareDataPackage& package)
 {
     spdlog::info("[Server] Receive mimeData: {} formats, from {}:{} {}", package.mimeFormats.size()
         , conn->peerAddress().toString(), conn->peerPort(), package.sender);
 
     auto mimeData = new QMimeData();
+
     for (int i = 0; i < package.mimeFormats.size(); i++)
     {
         spdlog::info("[Server] mimeData: {}", package.mimeFormats.at(i));
         mimeData->setData(package.mimeFormats.at(i), QByteArray::fromBase64(package.mimeData.at(i)));
     }
+
+    // todo receive image
+    if (!package.mimeImageType.isEmpty())
+    {
+        auto data = QByteArray::fromBase64(package.mimeImageData);
+        QTemporaryFile temp;
+        temp.setFileTemplate(QString{ "%1%2%3-XXXXXX.%4" }
+            .arg(QDir::tempPath()
+                , QDir::separator()
+                , QApplication::applicationName()
+                , package.mimeImageType));
+        temp.setAutoRemove(false);
+        if (temp.open())
+        {
+            temp.write(data);
+            temp.close();
+
+            QImage image;
+            spdlog::info("[Server][Mime] Temp path {}", temp.fileName());
+            image.load(temp.fileName());
+            spdlog::info("[Server][Mime] Receive Image[{}x{}]", image.width(), image.height());
+            mimeData->setUrls({ QUrl::fromLocalFile(temp.fileName()) });
+            mimeData->setImageData(image);
+        }
+    }
+    
+
+    QApplication::clipboard()->blockSignals(true);
     QApplication::clipboard()->setMimeData(mimeData);
+    QApplication::clipboard()->blockSignals(false);
 }
 
-void ClipShareWindow::sendToNeighbor(QString neighbor, const ClipSharePackage&package)
+void ClipShareWindow::handleHeartbeatReceived(const QNetworkDatagram& datagram, const ClipShareHeartbeatPackage& pkg)
+{
+    if (pkg.valid())
+    {
+        if (pkg.command == ClipShareHeartbeatPackage::Heartbeat)
+        {
+            spdlog::trace("[Heartbeat] Heartbeat from ({}:{})", datagram.senderAddress().toString(), datagram.senderPort());
+            broadcastHeartbeat(ClipShareHeartbeatPackage::Response);
+            // todo send device info to it / ignore local ************************************************************************************
+        }
+        else if (pkg.command == ClipShareHeartbeatPackage::Response)
+        {
+            spdlog::trace("[Heartbeat] Response from {}:{}", datagram.senderAddress().toString(), datagram.senderPort());
+            neighbors.insert(QString{ "%1_%2" }.arg(datagram.senderAddress().toString()).arg(pkg.port)
+                , ClipShareNeighbor{ datagram.senderAddress().toString(), datagram.senderAddress(), static_cast<int>(pkg.port) });
+        }
+    }
+    else
+    {
+        spdlog::warn("[Invalid] {}:{} heartbeat package [magic = 0x{:xns} command = 0x{:x}]"
+            , datagram.senderAddress().toString(), datagram.senderPort()
+            , spdlog::to_hex(pkg.magic, pkg.magic + sizeof(pkg.magic) / sizeof(pkg.magic[0])), pkg.command);
+    }
+}
+
+void ClipShareWindow::sendToNeighbor(QString neighbor, const ClipShareDataPackage&package)
 {
     spdlog::info("Send to neighbor {}", neighbor);
     QTcpSocket* sock{ nullptr };
@@ -293,12 +340,12 @@ void ClipShareWindow::sendToNeighbor(QString neighbor, const ClipSharePackage&pa
         auto sock = new QTcpSocket{ this };
         auto& neighborHost = neighbors.value(neighbor);
         sock->connectToHost(neighborHost.serverAddr, neighborHost.serverPort);
-        addServerNeighborSocket(sock);
-
+        
         connect(sock, &QTcpSocket::connected, [=]
             {
                 if (sock->state() == QTcpSocket::ConnectedState)
                 {
+                    addServerNeighborSocket(sock);
                     spdlog::info("[Server] Connect to {}({}:{})", sock->peerName(), sock->peerAddress().toString(), sock->peerPort());
                     auto data = QByteArray::fromStdString(nlohmann::json(package).dump());
                     sock->write(data.data(), data.length());
@@ -320,7 +367,7 @@ bool ClipShareWindow::isLocalHost(QHostAddress addr)
     return QNetworkInterface::allAddresses().contains(addr);
 }
 
-void ClipSharePackage::encodeMimeData(const QMimeData*mimeData)
+void ClipShareDataPackage::encodeMimeData(const QMimeData*mimeData)
 {
     auto formats = mimeData->formats();
     for (auto format : formats)
@@ -358,15 +405,15 @@ void ClipSharePackage::encodeMimeData(const QMimeData*mimeData)
             QByteArray imageData;
             QBuffer buffer(&imageData);
             buffer.open(QIODevice::WriteOnly);
-            image.save(&buffer, DefaultMimeImageType);
+            image.save(&buffer, ClipShareConfig::DefaultMimeImageType);
             mimeImageData = imageData.toBase64();
         }
 
         // use default type
         if (mimeImageType.isEmpty())
         {
-            spdlog::trace("[Mime] Set mimeImageType with {}", DefaultMimeImageType);
-            mimeImageType = DefaultMimeImageType;
+            spdlog::trace("[Mime] Set mimeImageType with {}", ClipShareConfig::DefaultMimeImageType);
+            mimeImageType = ClipShareConfig::DefaultMimeImageType;
         }
     }
 }
