@@ -38,7 +38,7 @@ ClipShareWindow::ClipShareWindow(QWidget *parent)
     // setup heartbeat response
     heartbeatBroadcaster.bind(QHostAddress::AnyIPv4, config.heartbeatPort, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint);
     heartbeatBroadcaster.joinMulticastGroup(QHostAddress(config.heartbeatMulticastGroupHost));
-    //heartbeatBroadcaster.setSocketOption(QAbstractSocket::MulticastLoopbackOption, 0);
+    heartbeatBroadcaster.setSocketOption(QAbstractSocket::MulticastLoopbackOption, 0);
     connect(&heartbeatBroadcaster, &QUdpSocket::readyRead, [=]{
         while (heartbeatBroadcaster.hasPendingDatagrams()) {
             auto datagram = heartbeatBroadcaster.receiveDatagram();
@@ -55,13 +55,13 @@ ClipShareWindow::ClipShareWindow(QWidget *parent)
                 {
                     if (pkg.command == ClipShareHeartbeatPackage::Heartbeat)
                     {
-                        spdlog::info("[Heartbeat] Heartbeat from ({}:{})", datagram.senderAddress().toString(), datagram.senderPort());
+                        spdlog::trace("[Heartbeat] Heartbeat from ({}:{})", datagram.senderAddress().toString(), datagram.senderPort());
                         broadcastHeartbeat(ClipShareHeartbeatPackage::Response);
                         // todo send device info to it / ignore local
                     }
                     else if (pkg.command == ClipShareHeartbeatPackage::Response)
                     {
-                        spdlog::info("[Heartbeat] Response from {}:{}", datagram.senderAddress().toString(), datagram.senderPort());
+                        spdlog::trace("[Heartbeat] Response from {}:{}", datagram.senderAddress().toString(), datagram.senderPort());
                         neighbors.insert(QString{"%1_%2"}.arg(datagram.senderAddress().toString()).arg(pkg.port)
                             , ClipShareNeighbor{datagram.senderAddress().toString(), datagram.senderAddress(), static_cast<int>(pkg.port)});
                     }
@@ -227,7 +227,7 @@ void ClipShareWindow::addServerNeighborSocket(QTcpSocket* sock)
                 , sock->peerAddress().toString(), sock->peerPort(), data);
 
             try {
-                handlePackageReceived(sock, ClipSharePackage{ nlohmann::json::parse(data) });
+                handlePackageReceived(sock, ClipSharePackage(nlohmann::json::parse(data)));
             }
             catch (nlohmann::json::parse_error e)
             {
@@ -248,20 +248,21 @@ void ClipShareWindow::broadcastHeartbeat(std::uint8_t command)
 
 void ClipShareWindow::handlePackageReceived(const QTcpSocket*conn, const ClipSharePackage& package)
 {
-    spdlog::info("[Server] Receive: {}, from {}:{} {}", package.mimeFormats.join("; ")
+    spdlog::info("[Server] Receive mimeData: {} formats, from {}:{} {}", package.mimeFormats.size()
         , conn->peerAddress().toString(), conn->peerPort(), package.sender);
 
     auto mimeData = new QMimeData();
     for (int i = 0; i < package.mimeFormats.size(); i++)
     {
+        spdlog::info("[Server] mimeData: {}", package.mimeFormats.at(i));
         mimeData->setData(package.mimeFormats.at(i), QByteArray::fromBase64(package.mimeData.at(i)));
     }
-    spdlog::info("[Mime] Get {} formt(s)", package.mimeFormats.size());
     QApplication::clipboard()->setMimeData(mimeData);
 }
 
 void ClipShareWindow::sendToNeighbor(QString neighbor, const ClipSharePackage&package)
 {
+    spdlog::info("Send to neighbor {}", neighbor);
     QTcpSocket* sock{ nullptr };
     if(sock == nullptr && neighborClientSockets.contains(neighbor))
     {
