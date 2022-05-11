@@ -3,7 +3,7 @@
 ######################################################################
 
 TEMPLATE = app
-TARGET = clipshare
+TARGET = bin/clipshare
 INCLUDEPATH += src \
     src/3rd/include/
 
