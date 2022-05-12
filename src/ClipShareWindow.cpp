@@ -1,5 +1,6 @@
 ﻿#include <QClipboard>
 #include <QMimeData>
+#include <QMimeDatabase>
 #include <QNetworkInterface>
 #include <QNetworkDatagram>
 #include <QHostInfo>
@@ -406,6 +407,7 @@ void ClipShareDataPackage::encodeMimeData(const QMimeData*mimeData)
             QBuffer buffer(&imageData);
             buffer.open(QIODevice::WriteOnly);
             image.save(&buffer, ClipShareConfig::DefaultMimeImageType);
+            mimeImageType = QMimeDatabase().mimeTypeForData(imageData).name().split("/").back();
             mimeImageData = imageData.toBase64();
         }
 
