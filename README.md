@@ -35,8 +35,7 @@
 ### Dependences
 - ***Ubuntu***  
 ```bash
-sudo apt install qtchooser
-sudo apt install libqt5widgets5
+sudo apt install qt5-default build-essential -y
 ```
 - ***Windows***  
     - Qt Creator: use clipshare.pro
