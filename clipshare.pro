@@ -8,7 +8,7 @@ DESTDIR = bin/
 INCLUDEPATH += src \
     src/3rd/include/
 
-CONFIG += C++14
+CONFIG += c++14
 
 OBJECTS_DIR = build/obj/
 MOC_DIR = build/

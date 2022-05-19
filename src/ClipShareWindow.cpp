@@ -12,6 +12,7 @@
 #include <QUrl>
 #include <spdlog/spdlog.h>
 #include <spdlog/fmt/bin_to_hex.h>
+#include <QMenu>
 
 #include "ClipShareWindow.h"
 
