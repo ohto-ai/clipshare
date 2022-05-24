@@ -7,7 +7,7 @@ SingleApplication::SingleApplication(int& argc, char** argv)
 	: QApplication{ argc, argv }
 	, isInstanceRunning{ false }
 	, localServer{ nullptr }
-	, serverName{ applicationFilePath() }
+	, serverName{ applicationFilePath() + "-mutex" }
 {
 	initLocalConnection();
 }
