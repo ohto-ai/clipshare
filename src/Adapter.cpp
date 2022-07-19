@@ -1,4 +1,5 @@
 ﻿#include <QString>
+#include <QTextCodec>
 #include "Adapter.h"
 
 void from_json(const nlohmann::json& j, QString& s)
