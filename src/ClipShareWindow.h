@@ -9,6 +9,8 @@
 #include <QMimeData>
 #include <QDateTime>
 #include <QTimer>
+#include <QDir>
+#include <QStandardPaths>
 
 #include "Adapter.h"
 #include "ui_ClipShareWindow.h"
@@ -38,7 +40,7 @@ struct ClipShareConfig
     int heartbeatBroadcastIntervalMSecs{ DefaultHeartbeatBroadcastIntervalMSecs };
     int heartbeatSuvivalTimeoutMSecs{ DefaultHeartbeatSuvivalTimeout };
     int heartbeatPort{ DefaultHeatbeatPort };
-    int packagePort{ ClipShareConfig::DefaultPackagePort };
+    int packagePort{ DefaultPackagePort };
     QString logLevel{ DefaultLogLevel };
 
     NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(ClipShareConfig
@@ -46,7 +48,8 @@ struct ClipShareConfig
         , heartbeatBroadcastIntervalMSecs
         , heartbeatSuvivalTimeoutMSecs
         , heartbeatMulticastGroupHost
-        , packagePort);
+        , packagePort
+        , logLevel);
 };
 
 /// <summary>
@@ -136,6 +139,9 @@ public:
     ClipShareWindow(QWidget *parent = Q_NULLPTR);
     virtual ~ClipShareWindow();
 
+    void loadConfig();
+    void saveConfig();
+
 public slots:
 
     void broadcastHeartbeat(std::uint8_t command = ClipShareHeartbeatPackage::Heartbeat);
@@ -148,6 +154,7 @@ public slots:
 
 protected:
     ClipShareConfig config{};
+    const QString ConfigFilePath{ QDir::toNativeSeparators(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) + "/clipshare.json") };
 
     QTcpServer packageReciver{ this };
     QMap<QString, QTcpSocket*> neighborClientSockets; // ip-port -> socket

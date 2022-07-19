@@ -5,23 +5,26 @@
 #include <fplus/fplus.hpp>
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
+#include <QTextCodec>
 
 int main(int argc, char *argv[])
 {
     SingleApplication a(argc, argv);
+    a.setApplicationName("clipshare");
+    a.setDesktopFileName("clipshare");
+    a.setApplicationVersion("0.0.1.dev");
+    a.setOrganizationName("ohtoai");
+    a.setOrganizationDomain("ohtoai.top");
+    a.setWindowIcon(QIcon{ ":/ClipShareWindow/res/icon/main.png" });
 
-    spdlog::set_level(spdlog::level::trace);
-
-    spdlog::info("[Application] CLIPSHARE initializing~");
     if (a.instanceRunning())
     {
         spdlog::warn("[Application] Another application has running, bye~");
         return 0;
     }
 
-    a.setWindowIcon(QIcon{ ":/ClipShareWindow/res/icon/main.png" });
-
     ClipShareWindow w;
+    spdlog::info("[Application] CLIPSHARE initializing~");
     w.show();
 
 	spdlog::info("[Application] Interface crate.");

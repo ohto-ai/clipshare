@@ -21,6 +21,8 @@ ClipShareWindow::ClipShareWindow(QWidget *parent)
 {
     ui.setupUi(this);
 
+    loadConfig();
+
     spdlog::info("[Config] Heartbeat Port = {}", config.heartbeatPort);
     spdlog::info("[Config] Heartbeat Interval = {}", config.heartbeatBroadcastIntervalMSecs);
     spdlog::info("[Config] Heartbeat Multicast Group Host = {}", config.heartbeatMulticastGroupHost);
@@ -150,6 +152,58 @@ ClipShareWindow::~ClipShareWindow()
 {
     // send offline heartbeat package
     broadcastHeartbeat(ClipShareHeartbeatPackage::Offline);
+}
+
+void ClipShareWindow::loadConfig()
+{
+    QFile configFile(ConfigFilePath);
+    spdlog::info("[Config] Load config {}", ConfigFilePath);
+
+    if (!configFile.exists())
+    {
+        spdlog::info("[Config] Config file not exists, create it");
+        saveConfig();
+        return;
+    }
+
+	if (!configFile.open(QIODevice::ReadOnly))
+	{
+        spdlog::error("[Config] Cannot open config file: {}", configFile.errorString());
+		return;
+	}
+
+    try {
+        auto j = nlohmann::json::parse(configFile.readAll());
+        config = j;
+    }
+    catch (nlohmann::json::parse_error e)
+    {
+        spdlog::error("[Config] Error occur when parse config file: {}", e.what());
+    }
+    catch (nlohmann::json::type_error e)
+    {
+		spdlog::error("[Config] Error occur when parse config file: {}", e.what());
+    }
+    configFile.close();
+}
+
+void ClipShareWindow::saveConfig()
+{
+    QFile configFile(ConfigFilePath);
+    spdlog::info("[Config] Save config {}", ConfigFilePath);
+    if (auto path = QFileInfo(configFile).path(); !QDir(path).exists())
+    {
+        QDir(QDir::currentPath()).mkpath(path);
+    }
+
+	if (!configFile.open(QIODevice::WriteOnly))
+	{
+		spdlog::error("[Config] Cannot open config file: {}", configFile.errorString());
+		return;
+	}
+
+    configFile.write(nlohmann::json(config).dump(4).c_str());
+	configFile.close();
 }
 
 QString ClipShareWindow::makeNeighborId(const QTcpSocket* sock)
