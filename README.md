@@ -44,7 +44,8 @@ sudo apt install qt5-default build-essential -y
 ### Build
 - ***Ubuntu***  
 ```bash
-qmake && make
+cmake -Bbuild
+cmake --build build
 ```
 - ***Windows***  
 Build with IDE.
